@@ -6,7 +6,7 @@ MP4 to MP3 Converter
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import os
-from moviepy.editor import VideoFileClip
+from moviepy import VideoFileClip
 import time
 from datetime import datetime, timedelta
 import winsound
@@ -201,7 +201,7 @@ class MP4ToMP3Converter:
 
         ttk.Label(search_frame, text="Search:").pack(side='left', padx=5)
         self.search_var = tk.StringVar()
-        self.search_var.trace('w', self.filter_history)
+        self.search_var.trace_add('write', self.filter_history)
         ttk.Entry(search_frame, textvariable=self.search_var).pack(
             side='left', fill='x', expand=True, padx=5)
         ttk.Button(search_frame, text='Clear History',
