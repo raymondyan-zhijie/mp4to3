@@ -1,10 +1,12 @@
 """
-MP4 to MP3 Converter
-一个功能强大的视频到音频转换工具，支持批量处理、多种格式和详细的历史记录。
+MP4 to MP3 Converter - 老年人友好版
+一个界面简洁、字体超大、易于操作的视频到音频转换工具
 """
 
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import filedialog, messagebox
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
 import os
 from moviepy import VideoFileClip
 import time
@@ -24,14 +26,27 @@ logging.basicConfig(
 )
 
 class MP4ToMP3Converter:
-    """MP4 到 MP3 转换器主类"""
+    """MP4 到 MP3 转换器 - 老年人友好版"""
 
     def __init__(self, root):
         """初始化转换器应用"""
         self.root = root
-        self.root.title("MP4 转 MP3 转换器 v2.0")
-        self.root.geometry("850x650")
+        self.root.title("MP4 转 MP3 转换器")
+
+        # 获取屏幕尺寸
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+
+        # 默认最大化窗口（适合老年人）
+        self.root.state('zoomed')  # Windows 上最大化
+
+        # 设置最小窗口大小
+        self.root.minsize(800, 600)
         self.root.resizable(True, True)
+
+        # 存储屏幕尺寸用于响应式调整
+        self.screen_width = screen_width
+        self.screen_height = screen_height
 
         # 应用数据目录
         self.app_data_dir = Path(os.getenv('APPDATA')) / 'MP4to3'
@@ -41,8 +56,8 @@ class MP4ToMP3Converter:
         self.files = []
 
         # 转换参数
-        self.bitrates = ["128k", "192k", "256k", "320k"]
-        self.sample_rates = ["44100", "48000", "96000"]
+        self.bitrates = ["128k - 普通质量", "192k - 高质量 ★推荐", "256k - 极高质量", "320k - 最高质量"]
+        self.bitrate_values = ["128k", "192k", "256k", "320k"]
 
         # 转换状态
         self.converting = False
@@ -56,19 +71,7 @@ class MP4ToMP3Converter:
         self.history_file = self.app_data_dir / 'conversion_history.json'
         self.load_history()
 
-        # 创建标签页
-        self.notebook = ttk.Notebook(self.root)
-        self.notebook.pack(fill='both', expand=True, padx=10, pady=5)
-
-        # 主转换页面
-        self.main_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.main_frame, text='转换')
-
-        # 历史记录页面
-        self.history_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.history_frame, text='历史记录')
-
-        # 创建界面元素
+        # 创建界面
         self.create_widgets()
 
         # 应用保存的配置
@@ -83,7 +86,6 @@ class MP4ToMP3Converter:
         """加载用户配置"""
         self.config = {
             'bitrate': '192k',
-            'sample_rate': '44100',
             'output_dir': os.path.expanduser("~\\Music")
         }
 
@@ -107,132 +109,274 @@ class MP4ToMP3Converter:
 
     def apply_config(self):
         """应用保存的配置到界面"""
-        self.bitrate_var.set(self.config.get('bitrate', '192k'))
-        self.sample_rate_var.set(self.config.get('sample_rate', '44100'))
+        # 设置比特率
+        bitrate = self.config.get('bitrate', '192k')
+        try:
+            index = self.bitrate_values.index(bitrate)
+            self.bitrate_var.set(self.bitrates[index])
+        except:
+            self.bitrate_var.set(self.bitrates[1])  # 默认192k
+
         self.output_path.set(self.config.get('output_dir', os.path.expanduser("~\\Music")))
 
     def create_widgets(self):
         """创建所有界面组件"""
-        self.create_main_tab()
-        self.create_history_tab()
+        # 创建可滚动的容器
+        # 外层容器
+        container_outer = ttk.Frame(self.root)
+        container_outer.pack(fill=BOTH, expand=YES)
 
-    def create_main_tab(self):
-        """创建主转换标签页"""
-        # 文件选择区域
-        file_frame = ttk.LabelFrame(self.main_frame, text="文件选择", padding=10)
-        file_frame.pack(fill="x", padx=10, pady=5)
+        # 创建 Canvas 和 Scrollbar
+        canvas = tk.Canvas(container_outer, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(container_outer, orient=VERTICAL, command=canvas.yview)
 
-        ttk.Button(file_frame, text="选择文件", command=self.select_files).pack(side="left", padx=5)
-        ttk.Button(file_frame, text="清空选择", command=self.clear_files).pack(side="left", padx=5)
+        # 可滚动的主框架
+        main_container = ttk.Frame(canvas, padding=20)
 
-        # 文件数量显示
-        self.file_count_var = tk.StringVar(value="已选择: 0 个文件")
-        ttk.Label(file_frame, textvariable=self.file_count_var).pack(side="left", padx=10)
-
-        # 文件列表显示
-        list_frame = ttk.LabelFrame(self.main_frame, text="已选文件列表", padding=10)
-        list_frame.pack(fill="both", expand=True, padx=10, pady=5)
-
-        # 添加滚动条
-        scrollbar = ttk.Scrollbar(list_frame)
-        scrollbar.pack(side="right", fill="y")
-
-        self.file_listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set)
-        self.file_listbox.pack(fill="both", expand=True)
-        scrollbar.config(command=self.file_listbox.yview)
-
-        # 转换选项区域
-        options_frame = ttk.LabelFrame(self.main_frame, text="转换选项", padding=10)
-        options_frame.pack(fill="x", padx=10, pady=5)
-
-        # 比特率选择
-        ttk.Label(options_frame, text="比特率:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        self.bitrate_var = tk.StringVar(value="192k")
-        bitrate_combo = ttk.Combobox(options_frame, textvariable=self.bitrate_var,
-                                     values=self.bitrates, state="readonly", width=10)
-        bitrate_combo.grid(row=0, column=1, padx=5, pady=5, sticky="w")
-        bitrate_combo.bind('<<ComboboxSelected>>', self.on_settings_changed)
-
-        # 采样率选择
-        ttk.Label(options_frame, text="采样率:").grid(row=0, column=2, padx=5, pady=5, sticky="w")
-        self.sample_rate_var = tk.StringVar(value="44100")
-        sample_rate_combo = ttk.Combobox(options_frame, textvariable=self.sample_rate_var,
-                                        values=self.sample_rates, state="readonly", width=10)
-        sample_rate_combo.grid(row=0, column=3, padx=5, pady=5, sticky="w")
-        sample_rate_combo.bind('<<ComboboxSelected>>', self.on_settings_changed)
-
-        # 输出目录选择
-        output_frame = ttk.LabelFrame(self.main_frame, text="输出目录", padding=10)
-        output_frame.pack(fill="x", padx=10, pady=5)
-
-        self.output_path = tk.StringVar(value=os.path.expanduser("~\\Music"))
-        ttk.Entry(output_frame, textvariable=self.output_path, state="readonly").pack(
-            side="left", fill="x", expand=True, padx=5)
-        ttk.Button(output_frame, text="浏览", command=self.select_output_dir).pack(side="left", padx=5)
-
-        # 进度显示区域
-        progress_frame = ttk.LabelFrame(self.main_frame, text="转换进度", padding=10)
-        progress_frame.pack(fill="x", padx=10, pady=5)
-
-        self.progress_var = tk.DoubleVar()
-        self.progress_bar = ttk.Progressbar(progress_frame, variable=self.progress_var, maximum=100)
-        self.progress_bar.pack(fill="x", padx=5, pady=5)
-
-        self.status_var = tk.StringVar(value="就绪")
-        ttk.Label(progress_frame, textvariable=self.status_var).pack(pady=5)
-
-        # 转换按钮区域
-        button_frame = ttk.Frame(self.main_frame)
-        button_frame.pack(pady=10)
-
-        self.start_button = ttk.Button(button_frame, text="开始转换",
-                                       command=self.start_conversion)
-        self.start_button.pack(side="left", padx=5)
-
-        self.cancel_button = ttk.Button(button_frame, text="取消",
-                                        command=self.cancel_conversion, state="disabled")
-        self.cancel_button.pack(side="left", padx=5)
-
-    def create_history_tab(self):
-        """创建历史记录标签页"""
-        # 搜索和控制框
-        search_frame = ttk.Frame(self.history_frame)
-        search_frame.pack(fill='x', padx=10, pady=5)
-
-        ttk.Label(search_frame, text="搜索:").pack(side='left', padx=5)
-        self.search_var = tk.StringVar()
-        self.search_var.trace_add('write', self.filter_history)
-        ttk.Entry(search_frame, textvariable=self.search_var).pack(
-            side='left', fill='x', expand=True, padx=5)
-        ttk.Button(search_frame, text='清空历史',
-                  command=self.clear_history).pack(side='right', padx=5)
-
-        # 历史记录列表
-        columns = ('时间', '源文件', '输出文件', '比特率', '采样率', '耗时')
-        self.history_tree = ttk.Treeview(self.history_frame, columns=columns, show='headings')
-
-        # 设置列标题和宽度
-        column_widths = {
-            '时间': 150,
-            '源文件': 200,
-            '输出文件': 200,
-            '比特率': 80,
-            '采样率': 100,
-            '耗时': 100
-        }
-
-        for col in columns:
-            self.history_tree.heading(col, text=col)
-            self.history_tree.column(col, width=column_widths.get(col, 100))
-
-        # 添加滚动条
-        scrollbar = ttk.Scrollbar(self.history_frame, orient='vertical',
-                                 command=self.history_tree.yview)
-        self.history_tree.configure(yscrollcommand=scrollbar.set)
+        # 配置滚动
+        canvas.configure(yscrollcommand=scrollbar.set)
 
         # 布局
-        self.history_tree.pack(side='left', fill='both', expand=True, padx=(10, 0), pady=5)
-        scrollbar.pack(side='right', fill='y', padx=(0, 10), pady=5)
+        scrollbar.pack(side=RIGHT, fill=Y)
+        canvas.pack(side=LEFT, fill=BOTH, expand=YES)
+
+        # 将主容器添加到 canvas
+        canvas_frame = canvas.create_window((0, 0), window=main_container, anchor=NW)
+
+        # 配置滚动区域
+        def configure_scroll_region(event=None):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            # 确保框架宽度填充canvas
+            canvas_width = canvas.winfo_width()
+            canvas.itemconfig(canvas_frame, width=canvas_width)
+
+        main_container.bind("<Configure>", configure_scroll_region)
+        canvas.bind("<Configure>", configure_scroll_region)
+
+        # 鼠标滚轮支持
+        def on_mousewheel(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        canvas.bind_all("<MouseWheel>", on_mousewheel)
+
+        # 存储 canvas 引用用于后续操作
+        self.canvas = canvas
+        self.main_container = main_container
+
+        # ==================== 标题区域 ====================
+        title_frame = ttk.Frame(main_container)
+        title_frame.pack(fill=X, pady=(0, 15))
+
+        title_label = ttk.Label(
+            title_frame,
+            text="🎵 视频转音频工具",
+            font=("微软雅黑", 24, "bold"),
+            bootstyle="inverse-primary"
+        )
+        title_label.pack()
+
+        subtitle_label = ttk.Label(
+            title_frame,
+            text="简单三步：选择视频 → 点击转换 → 完成",
+            font=("微软雅黑", 13),
+            bootstyle="secondary"
+        )
+        subtitle_label.pack(pady=(3, 0))
+
+        # ==================== 步骤1: 选择文件 ====================
+        step1_frame = ttk.Labelframe(
+            main_container,
+            text="  第一步：选择要转换的视频文件  ",
+            padding=15,
+            bootstyle="primary"
+        )
+        step1_frame.pack(fill=BOTH, expand=YES, pady=(0, 12))
+
+        # 按钮容器
+        button_container = ttk.Frame(step1_frame)
+        button_container.pack(fill=X, pady=(0, 12))
+
+        # 选择文件按钮（大号）
+        self.select_btn = ttk.Button(
+            button_container,
+            text="📁 选择视频文件",
+            command=self.select_files,
+            bootstyle="success",
+            width=20
+        )
+        self.select_btn.pack(side=LEFT, padx=(0, 10))
+        self.select_btn.configure(padding=12)
+
+        # 清空按钮
+        self.clear_btn = ttk.Button(
+            button_container,
+            text="🗑️ 清空列表",
+            command=self.clear_files,
+            bootstyle="secondary-outline",
+            width=15
+        )
+        self.clear_btn.pack(side=LEFT)
+        self.clear_btn.configure(padding=12)
+
+        # 文件数量显示
+        self.file_count_var = tk.StringVar(value="尚未选择文件")
+        count_label = ttk.Label(
+            button_container,
+            textvariable=self.file_count_var,
+            font=("微软雅黑", 16, "bold"),
+            bootstyle="info"
+        )
+        count_label.pack(side=LEFT, padx=(20, 0))
+
+        # 文件列表（使用更大的字体）
+        list_container = ttk.Frame(step1_frame)
+        list_container.pack(fill=BOTH, expand=YES)
+
+        scrollbar = ttk.Scrollbar(list_container)
+        scrollbar.pack(side=RIGHT, fill=Y)
+
+        self.file_listbox = tk.Listbox(
+            list_container,
+            font=("微软雅黑", 14),
+            yscrollcommand=scrollbar.set,
+            height=6,
+            selectmode=tk.SINGLE,
+            relief=tk.FLAT,
+            borderwidth=2,
+            highlightthickness=1
+        )
+        self.file_listbox.pack(side=LEFT, fill=BOTH, expand=YES)
+        scrollbar.config(command=self.file_listbox.yview)
+
+        # ==================== 步骤2: 设置选项 ====================
+        step2_frame = ttk.Labelframe(
+            main_container,
+            text="  第二步：设置转换选项（可选）  ",
+            padding=15,
+            bootstyle="info"
+        )
+        step2_frame.pack(fill=X, pady=(0, 12))
+
+        # 音质选择
+        quality_container = ttk.Frame(step2_frame)
+        quality_container.pack(fill=X, pady=(0, 10))
+
+        quality_label = ttk.Label(
+            quality_container,
+            text="音质选择：",
+            font=("微软雅黑", 16, "bold")
+        )
+        quality_label.pack(side=LEFT, padx=(0, 10))
+
+        self.bitrate_var = tk.StringVar(value="192k - 高质量 ★推荐")
+        bitrate_combo = ttk.Combobox(
+            quality_container,
+            textvariable=self.bitrate_var,
+            values=self.bitrates,
+            state="readonly",
+            font=("微软雅黑", 14),
+            width=25
+        )
+        bitrate_combo.pack(side=LEFT)
+        bitrate_combo.bind('<<ComboboxSelected>>', self.on_settings_changed)
+
+        # 输出目录
+        output_container = ttk.Frame(step2_frame)
+        output_container.pack(fill=X)
+
+        output_label = ttk.Label(
+            output_container,
+            text="保存位置：",
+            font=("微软雅黑", 16, "bold")
+        )
+        output_label.pack(side=LEFT, padx=(0, 10))
+
+        self.output_path = tk.StringVar(value=os.path.expanduser("~\\Music"))
+        output_entry = ttk.Entry(
+            output_container,
+            textvariable=self.output_path,
+            state="readonly",
+            font=("微软雅黑", 12),
+            width=35
+        )
+        output_entry.pack(side=LEFT, padx=(0, 10))
+
+        browse_btn = ttk.Button(
+            output_container,
+            text="📂 更改位置",
+            command=self.select_output_dir,
+            bootstyle="info-outline",
+            width=12
+        )
+        browse_btn.pack(side=LEFT)
+        browse_btn.configure(padding=8)
+
+        # ==================== 步骤3: 开始转换 ====================
+        step3_frame = ttk.Labelframe(
+            main_container,
+            text="  第三步：开始转换  ",
+            padding=15,
+            bootstyle="success"
+        )
+        step3_frame.pack(fill=X, pady=(0, 12))
+
+        # 进度条
+        self.progress_var = tk.DoubleVar()
+        self.progress_bar = ttk.Progressbar(
+            step3_frame,
+            variable=self.progress_var,
+            maximum=100,
+            bootstyle="success-striped",
+            length=400
+        )
+        self.progress_bar.pack(fill=X, pady=(0, 15))
+
+        # 状态显示
+        self.status_var = tk.StringVar(value="准备就绪，请选择视频文件")
+        status_label = ttk.Label(
+            step3_frame,
+            textvariable=self.status_var,
+            font=("微软雅黑", 14),
+            bootstyle="secondary",
+            anchor=CENTER
+        )
+        status_label.pack(fill=X, pady=(0, 15))
+
+        # 转换按钮（大号、醒目）
+        button_container = ttk.Frame(step3_frame)
+        button_container.pack()
+
+        self.start_button = ttk.Button(
+            button_container,
+            text="🚀 开始转换",
+            command=self.start_conversion,
+            bootstyle="success",
+            width=25
+        )
+        self.start_button.pack(side=LEFT, padx=(0, 15))
+        self.start_button.configure(padding=15)
+
+        self.cancel_button = ttk.Button(
+            button_container,
+            text="⏹️ 取消转换",
+            command=self.cancel_conversion,
+            bootstyle="danger",
+            state=DISABLED,
+            width=20
+        )
+        self.cancel_button.pack(side=LEFT)
+        self.cancel_button.configure(padding=15)
+
+        # ==================== 历史记录按钮 ====================
+        history_btn = ttk.Button(
+            main_container,
+            text="📋 查看转换历史",
+            command=self.show_history,
+            bootstyle="secondary-outline",
+            width=20
+        )
+        history_btn.pack(pady=(10, 0))
+        history_btn.configure(padding=10)
 
     def load_history(self):
         """加载转换历史记录"""
@@ -254,48 +398,98 @@ class MP4ToMP3Converter:
         except Exception as e:
             logging.error(f"保存历史记录失败: {e}")
 
-    def add_to_history(self, source_file, output_file, bitrate, sample_rate, duration):
+    def add_to_history(self, source_file, output_file, bitrate, duration):
         """添加记录到转换历史"""
         history_item = {
             'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'source': source_file,
             'output': output_file,
             'bitrate': bitrate,
-            'sample_rate': sample_rate,
             'duration': str(duration)
         }
         self.conversion_history.append(history_item)
         self.save_history()
 
-        # 使用线程安全的方式更新UI
-        self.root.after(0, self.update_history_display)
+    def show_history(self):
+        """显示历史记录窗口"""
+        history_window = ttk.Toplevel(self.root)
+        history_window.title("转换历史记录")
+        history_window.geometry("900x600")
 
-    def update_history_display(self, filter_text=''):
-        """更新历史记录显示"""
-        self.history_tree.delete(*self.history_tree.get_children())
-        for item in reversed(self.conversion_history):
-            if (filter_text.lower() in item['source'].lower() or
-                filter_text.lower() in item['output'].lower()):
-                self.history_tree.insert('', 'end', values=(
-                    item['time'],
-                    os.path.basename(item['source']),
-                    os.path.basename(item['output']),
-                    item['bitrate'],
-                    item['sample_rate'],
-                    item['duration']
-                ))
+        # 主容器
+        container = ttk.Frame(history_window, padding=20)
+        container.pack(fill=BOTH, expand=YES)
 
-    def filter_history(self, *args):
-        """过滤历史记录"""
-        self.update_history_display(self.search_var.get())
+        # 标题
+        title = ttk.Label(
+            container,
+            text="📋 转换历史记录",
+            font=("微软雅黑", 20, "bold"),
+            bootstyle="primary"
+        )
+        title.pack(pady=(0, 20))
 
-    def clear_history(self):
-        """清空历史记录"""
-        if messagebox.askyesno('确认', '确定要清空所有转换历史记录吗？'):
+        # 按钮框
+        btn_frame = ttk.Frame(container)
+        btn_frame.pack(fill=X, pady=(0, 10))
+
+        clear_btn = ttk.Button(
+            btn_frame,
+            text="🗑️ 清空历史",
+            command=lambda: self.clear_history_with_refresh(history_window),
+            bootstyle="danger-outline"
+        )
+        clear_btn.pack(side=RIGHT)
+        clear_btn.configure(padding=10)
+
+        # 历史列表
+        if self.conversion_history:
+            # 使用文本框显示历史（更易读）
+            text_frame = ttk.Frame(container)
+            text_frame.pack(fill=BOTH, expand=YES)
+
+            scrollbar = ttk.Scrollbar(text_frame)
+            scrollbar.pack(side=RIGHT, fill=Y)
+
+            history_text = tk.Text(
+                text_frame,
+                font=("微软雅黑", 12),
+                yscrollcommand=scrollbar.set,
+                wrap=tk.WORD,
+                relief=tk.FLAT,
+                borderwidth=2
+            )
+            history_text.pack(side=LEFT, fill=BOTH, expand=YES)
+            scrollbar.config(command=history_text.yview)
+
+            # 填充历史记录
+            for i, item in enumerate(reversed(self.conversion_history), 1):
+                history_text.insert(END, f"【记录 {i}】\n", "title")
+                history_text.insert(END, f"时间：{item['time']}\n")
+                history_text.insert(END, f"源文件：{os.path.basename(item['source'])}\n")
+                history_text.insert(END, f"输出：{os.path.basename(item['output'])}\n")
+                history_text.insert(END, f"音质：{item['bitrate']}  耗时：{item['duration']}\n")
+                history_text.insert(END, "\n" + "-"*80 + "\n\n")
+
+            history_text.tag_config("title", font=("微软雅黑", 13, "bold"), foreground="#0d6efd")
+            history_text.config(state=DISABLED)
+        else:
+            no_history = ttk.Label(
+                container,
+                text="暂无转换记录",
+                font=("微软雅黑", 16),
+                bootstyle="secondary"
+            )
+            no_history.pack(expand=YES)
+
+    def clear_history_with_refresh(self, window):
+        """清空历史记录并刷新窗口"""
+        if messagebox.askyesno('确认', '确定要清空所有转换历史记录吗？', parent=window):
             self.conversion_history = []
             self.save_history()
-            self.update_history_display()
             logging.info("历史记录已清空")
+            window.destroy()
+            self.show_history()
 
     def select_files(self):
         """选择要转换的文件"""
@@ -324,8 +518,14 @@ class MP4ToMP3Converter:
         """更新文件列表显示"""
         self.file_listbox.delete(0, tk.END)
         for file in self.files:
-            self.file_listbox.insert(tk.END, os.path.basename(file))
-        self.file_count_var.set(f"已选择: {len(self.files)} 个文件")
+            self.file_listbox.insert(tk.END, f"  ▸ {os.path.basename(file)}")
+
+        if len(self.files) > 0:
+            self.file_count_var.set(f"已选择 {len(self.files)} 个文件")
+            self.status_var.set("文件已选择，点击【开始转换】按钮")
+        else:
+            self.file_count_var.set("尚未选择文件")
+            self.status_var.set("准备就绪，请选择视频文件")
 
     def select_output_dir(self):
         """选择输出目录"""
@@ -353,14 +553,19 @@ class MP4ToMP3Converter:
 
     def on_settings_changed(self, event=None):
         """当设置改变时保存配置"""
-        self.config['bitrate'] = self.bitrate_var.get()
-        self.config['sample_rate'] = self.sample_rate_var.get()
-        self.save_config()
+        # 获取实际的比特率值
+        selected = self.bitrate_var.get()
+        try:
+            index = self.bitrates.index(selected)
+            self.config['bitrate'] = self.bitrate_values[index]
+            self.save_config()
+        except:
+            pass
 
     def start_conversion(self):
         """开始转换"""
         if not self.files:
-            messagebox.showwarning("警告", "请先选择视频文件！")
+            messagebox.showwarning("提示", "请先选择视频文件！\n\n点击【选择视频文件】按钮来选择要转换的文件。")
             return
 
         # 验证输出目录
@@ -376,8 +581,10 @@ class MP4ToMP3Converter:
         self.cancel_event.clear()
 
         self.converting = True
-        self.start_button.config(state="disabled")
-        self.cancel_button.config(state="normal")
+        self.start_button.config(state=DISABLED)
+        self.cancel_button.config(state=NORMAL)
+        self.select_btn.config(state=DISABLED)
+        self.clear_btn.config(state=DISABLED)
 
         logging.info(f"开始转换 {len(self.files)} 个文件")
 
@@ -389,7 +596,7 @@ class MP4ToMP3Converter:
         """取消转换"""
         if messagebox.askyesno("确认", "确定要取消转换吗？"):
             self.cancel_event.set()
-            self.root.after(0, lambda: self.status_var.set("正在取消..."))
+            self.root.after(0, lambda: self.status_var.set("正在取消转换..."))
             logging.info("用户请求取消转换")
 
     def convert_files(self):
@@ -399,10 +606,18 @@ class MP4ToMP3Converter:
         successful = 0
         failed = 0
 
+        # 获取实际的比特率值
+        selected = self.bitrate_var.get()
+        try:
+            index = self.bitrates.index(selected)
+            bitrate = self.bitrate_values[index]
+        except:
+            bitrate = "192k"
+
         for index, file in enumerate(self.files):
             # 检查是否取消
             if self.cancel_event.is_set():
-                self.root.after(0, lambda: self.status_var.set("转换已取消"))
+                self.root.after(0, lambda: self.status_var.set("❌ 转换已取消"))
                 logging.info("转换已取消")
                 break
 
@@ -412,7 +627,7 @@ class MP4ToMP3Converter:
 
                 # 更新状态（线程安全）
                 self.root.after(0, lambda fn=file_name, i=index, t=total_files:
-                              self.status_var.set(f"正在转换 {fn} ({i + 1}/{t})"))
+                              self.status_var.set(f"⏳ 正在转换：{fn} ({i + 1}/{t})"))
 
                 # 设置输出文件路径
                 output_file = os.path.join(
@@ -422,7 +637,6 @@ class MP4ToMP3Converter:
 
                 # 检查输出文件是否已存在
                 if os.path.exists(output_file):
-                    # 生成唯一文件名
                     base_name = os.path.splitext(file_name)[0]
                     counter = 1
                     while os.path.exists(output_file):
@@ -444,9 +658,9 @@ class MP4ToMP3Converter:
                 # 设置音频参数
                 audio.write_audiofile(
                     output_file,
-                    bitrate=self.bitrate_var.get(),
-                    fps=int(self.sample_rate_var.get()),
-                    logger=None  # 禁用 moviepy 的进度输出
+                    bitrate=bitrate,
+                    fps=44100,
+                    logger=None
                 )
 
                 # 关闭资源
@@ -462,8 +676,7 @@ class MP4ToMP3Converter:
                 self.add_to_history(
                     file,
                     output_file,
-                    self.bitrate_var.get(),
-                    self.sample_rate_var.get(),
+                    bitrate,
                     timedelta(seconds=int(file_duration))
                 )
 
@@ -472,7 +685,7 @@ class MP4ToMP3Converter:
 
             except Exception as e:
                 failed += 1
-                error_msg = f"转换 {file_name} 时出错: {str(e)}"
+                error_msg = f"转换 {file_name} 时出错:\n\n{str(e)}"
                 logging.error(error_msg)
                 self.root.after(0, lambda msg=error_msg:
                               messagebox.showerror("转换错误", msg))
@@ -480,7 +693,7 @@ class MP4ToMP3Converter:
         # 转换完成处理
         if not self.cancel_event.is_set():
             total_time = time.time() - total_start_time
-            status_msg = f"完成: {successful} 个成功, {failed} 个失败，耗时 {timedelta(seconds=int(total_time))}"
+            status_msg = f"✅ 转换完成！成功 {successful} 个，失败 {failed} 个，耗时 {timedelta(seconds=int(total_time))}"
             self.root.after(0, lambda msg=status_msg: self.status_var.set(msg))
             self.root.after(0, lambda: self.progress_var.set(100))
 
@@ -491,7 +704,7 @@ class MP4ToMP3Converter:
                 pass
 
             # 显示完成消息
-            completion_msg = f"转换完成！\n\n成功: {successful} 个\n失败: {failed} 个\n总耗时: {timedelta(seconds=int(total_time))}"
+            completion_msg = f"🎉 转换完成！\n\n✅ 成功：{successful} 个\n❌ 失败：{failed} 个\n⏱️ 总耗时：{timedelta(seconds=int(total_time))}\n\n文件已保存到：\n{self.output_path.get()}"
             self.root.after(0, lambda msg=completion_msg:
                           messagebox.showinfo("转换完成", msg))
 
@@ -499,8 +712,10 @@ class MP4ToMP3Converter:
 
         # 重置状态
         self.converting = False
-        self.root.after(0, lambda: self.start_button.config(state="normal"))
-        self.root.after(0, lambda: self.cancel_button.config(state="disabled"))
+        self.root.after(0, lambda: self.start_button.config(state=NORMAL))
+        self.root.after(0, lambda: self.cancel_button.config(state=DISABLED))
+        self.root.after(0, lambda: self.select_btn.config(state=NORMAL))
+        self.root.after(0, lambda: self.clear_btn.config(state=NORMAL))
 
     def on_closing(self):
         """窗口关闭事件处理"""
@@ -515,7 +730,20 @@ class MP4ToMP3Converter:
 
 def main():
     """主函数"""
-    root = tk.Tk()
+    # 使用现代主题
+    root = ttk.Window(
+        title="MP4 转 MP3 转换器",
+        themename="cosmo",  # 现代、清新的主题
+        size=(1000, 750)
+    )
+
+    # 设置全局字体
+    style = ttk.Style()
+    style.configure('.', font=('微软雅黑', 12))
+    style.configure('TButton', font=('微软雅黑', 14, 'bold'))
+    style.configure('TLabel', font=('微软雅黑', 12))
+    style.configure('TLabelframe.Label', font=('微软雅黑', 16, 'bold'))
+
     app = MP4ToMP3Converter(root)
     root.mainloop()
 
