@@ -29,7 +29,7 @@ class MP4ToMP3Converter:
     def __init__(self, root):
         """初始化转换器应用"""
         self.root = root
-        self.root.title("MP4 to MP3 Converter v2.0")
+        self.root.title("MP4 转 MP3 转换器 v2.0")
         self.root.geometry("850x650")
         self.root.resizable(True, True)
 
@@ -62,11 +62,11 @@ class MP4ToMP3Converter:
 
         # 主转换页面
         self.main_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.main_frame, text='Conversion')
+        self.notebook.add(self.main_frame, text='转换')
 
         # 历史记录页面
         self.history_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.history_frame, text='History')
+        self.notebook.add(self.history_frame, text='历史记录')
 
         # 创建界面元素
         self.create_widgets()
@@ -119,18 +119,18 @@ class MP4ToMP3Converter:
     def create_main_tab(self):
         """创建主转换标签页"""
         # 文件选择区域
-        file_frame = ttk.LabelFrame(self.main_frame, text="File Selection", padding=10)
+        file_frame = ttk.LabelFrame(self.main_frame, text="文件选择", padding=10)
         file_frame.pack(fill="x", padx=10, pady=5)
 
-        ttk.Button(file_frame, text="Select Files", command=self.select_files).pack(side="left", padx=5)
-        ttk.Button(file_frame, text="Clear Selection", command=self.clear_files).pack(side="left", padx=5)
+        ttk.Button(file_frame, text="选择文件", command=self.select_files).pack(side="left", padx=5)
+        ttk.Button(file_frame, text="清空选择", command=self.clear_files).pack(side="left", padx=5)
 
         # 文件数量显示
-        self.file_count_var = tk.StringVar(value="Selected: 0 files")
+        self.file_count_var = tk.StringVar(value="已选择: 0 个文件")
         ttk.Label(file_frame, textvariable=self.file_count_var).pack(side="left", padx=10)
 
         # 文件列表显示
-        list_frame = ttk.LabelFrame(self.main_frame, text="Selected Files", padding=10)
+        list_frame = ttk.LabelFrame(self.main_frame, text="已选文件列表", padding=10)
         list_frame.pack(fill="both", expand=True, padx=10, pady=5)
 
         # 添加滚动条
@@ -142,11 +142,11 @@ class MP4ToMP3Converter:
         scrollbar.config(command=self.file_listbox.yview)
 
         # 转换选项区域
-        options_frame = ttk.LabelFrame(self.main_frame, text="Conversion Options", padding=10)
+        options_frame = ttk.LabelFrame(self.main_frame, text="转换选项", padding=10)
         options_frame.pack(fill="x", padx=10, pady=5)
 
         # 比特率选择
-        ttk.Label(options_frame, text="Bitrate:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        ttk.Label(options_frame, text="比特率:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
         self.bitrate_var = tk.StringVar(value="192k")
         bitrate_combo = ttk.Combobox(options_frame, textvariable=self.bitrate_var,
                                      values=self.bitrates, state="readonly", width=10)
@@ -154,7 +154,7 @@ class MP4ToMP3Converter:
         bitrate_combo.bind('<<ComboboxSelected>>', self.on_settings_changed)
 
         # 采样率选择
-        ttk.Label(options_frame, text="Sample Rate:").grid(row=0, column=2, padx=5, pady=5, sticky="w")
+        ttk.Label(options_frame, text="采样率:").grid(row=0, column=2, padx=5, pady=5, sticky="w")
         self.sample_rate_var = tk.StringVar(value="44100")
         sample_rate_combo = ttk.Combobox(options_frame, textvariable=self.sample_rate_var,
                                         values=self.sample_rates, state="readonly", width=10)
@@ -162,34 +162,34 @@ class MP4ToMP3Converter:
         sample_rate_combo.bind('<<ComboboxSelected>>', self.on_settings_changed)
 
         # 输出目录选择
-        output_frame = ttk.LabelFrame(self.main_frame, text="Output Directory", padding=10)
+        output_frame = ttk.LabelFrame(self.main_frame, text="输出目录", padding=10)
         output_frame.pack(fill="x", padx=10, pady=5)
 
         self.output_path = tk.StringVar(value=os.path.expanduser("~\\Music"))
         ttk.Entry(output_frame, textvariable=self.output_path, state="readonly").pack(
             side="left", fill="x", expand=True, padx=5)
-        ttk.Button(output_frame, text="Browse", command=self.select_output_dir).pack(side="left", padx=5)
+        ttk.Button(output_frame, text="浏览", command=self.select_output_dir).pack(side="left", padx=5)
 
         # 进度显示区域
-        progress_frame = ttk.LabelFrame(self.main_frame, text="Progress", padding=10)
+        progress_frame = ttk.LabelFrame(self.main_frame, text="转换进度", padding=10)
         progress_frame.pack(fill="x", padx=10, pady=5)
 
         self.progress_var = tk.DoubleVar()
         self.progress_bar = ttk.Progressbar(progress_frame, variable=self.progress_var, maximum=100)
         self.progress_bar.pack(fill="x", padx=5, pady=5)
 
-        self.status_var = tk.StringVar(value="Ready")
+        self.status_var = tk.StringVar(value="就绪")
         ttk.Label(progress_frame, textvariable=self.status_var).pack(pady=5)
 
         # 转换按钮区域
         button_frame = ttk.Frame(self.main_frame)
         button_frame.pack(pady=10)
 
-        self.start_button = ttk.Button(button_frame, text="Start Conversion",
+        self.start_button = ttk.Button(button_frame, text="开始转换",
                                        command=self.start_conversion)
         self.start_button.pack(side="left", padx=5)
 
-        self.cancel_button = ttk.Button(button_frame, text="Cancel",
+        self.cancel_button = ttk.Button(button_frame, text="取消",
                                         command=self.cancel_conversion, state="disabled")
         self.cancel_button.pack(side="left", padx=5)
 
@@ -199,26 +199,26 @@ class MP4ToMP3Converter:
         search_frame = ttk.Frame(self.history_frame)
         search_frame.pack(fill='x', padx=10, pady=5)
 
-        ttk.Label(search_frame, text="Search:").pack(side='left', padx=5)
+        ttk.Label(search_frame, text="搜索:").pack(side='left', padx=5)
         self.search_var = tk.StringVar()
         self.search_var.trace_add('write', self.filter_history)
         ttk.Entry(search_frame, textvariable=self.search_var).pack(
             side='left', fill='x', expand=True, padx=5)
-        ttk.Button(search_frame, text='Clear History',
+        ttk.Button(search_frame, text='清空历史',
                   command=self.clear_history).pack(side='right', padx=5)
 
         # 历史记录列表
-        columns = ('Time', 'Source File', 'Output File', 'Bitrate', 'Sample Rate', 'Duration')
+        columns = ('时间', '源文件', '输出文件', '比特率', '采样率', '耗时')
         self.history_tree = ttk.Treeview(self.history_frame, columns=columns, show='headings')
 
         # 设置列标题和宽度
         column_widths = {
-            'Time': 150,
-            'Source File': 200,
-            'Output File': 200,
-            'Bitrate': 80,
-            'Sample Rate': 100,
-            'Duration': 100
+            '时间': 150,
+            '源文件': 200,
+            '输出文件': 200,
+            '比特率': 80,
+            '采样率': 100,
+            '耗时': 100
         }
 
         for col in columns:
@@ -291,7 +291,7 @@ class MP4ToMP3Converter:
 
     def clear_history(self):
         """清空历史记录"""
-        if messagebox.askyesno('Confirm', 'Are you sure you want to clear all conversion history?'):
+        if messagebox.askyesno('确认', '确定要清空所有转换历史记录吗？'):
             self.conversion_history = []
             self.save_history()
             self.update_history_display()
@@ -300,10 +300,10 @@ class MP4ToMP3Converter:
     def select_files(self):
         """选择要转换的文件"""
         files = filedialog.askopenfilenames(
-            title="Select Video Files",
+            title="选择视频文件",
             filetypes=[
-                ("Video files", "*.mp4;*.avi;*.mkv;*.mov;*.flv;*.wmv;*.m4v"),
-                ("All files", "*.*")
+                ("视频文件", "*.mp4;*.avi;*.mkv;*.mov;*.flv;*.wmv;*.m4v"),
+                ("所有文件", "*.*")
             ]
         )
         if files:
@@ -325,24 +325,24 @@ class MP4ToMP3Converter:
         self.file_listbox.delete(0, tk.END)
         for file in self.files:
             self.file_listbox.insert(tk.END, os.path.basename(file))
-        self.file_count_var.set(f"Selected: {len(self.files)} files")
+        self.file_count_var.set(f"已选择: {len(self.files)} 个文件")
 
     def select_output_dir(self):
         """选择输出目录"""
         directory = filedialog.askdirectory(
-            title="Select Output Directory",
+            title="选择输出目录",
             initialdir=self.output_path.get()
         )
         if directory:
             # 验证目录是否存在
             if not os.path.exists(directory):
-                messagebox.showerror("Error", "Selected directory does not exist!")
+                messagebox.showerror("错误", "所选目录不存在！")
                 logging.error(f"选择的目录不存在: {directory}")
                 return
 
             # 验证是否有写入权限
             if not os.access(directory, os.W_OK):
-                messagebox.showerror("Error", "No write permission for selected directory!")
+                messagebox.showerror("错误", "所选目录没有写入权限！")
                 logging.error(f"目录无写入权限: {directory}")
                 return
 
@@ -360,13 +360,13 @@ class MP4ToMP3Converter:
     def start_conversion(self):
         """开始转换"""
         if not self.files:
-            messagebox.showwarning("Warning", "Please select video files first!")
+            messagebox.showwarning("警告", "请先选择视频文件！")
             return
 
         # 验证输出目录
         output_dir = self.output_path.get()
         if not os.path.exists(output_dir):
-            messagebox.showerror("Error", "Output directory does not exist!")
+            messagebox.showerror("错误", "输出目录不存在！")
             return
 
         if self.converting:
@@ -387,9 +387,9 @@ class MP4ToMP3Converter:
 
     def cancel_conversion(self):
         """取消转换"""
-        if messagebox.askyesno("Confirm", "Are you sure you want to cancel the conversion?"):
+        if messagebox.askyesno("确认", "确定要取消转换吗？"):
             self.cancel_event.set()
-            self.root.after(0, lambda: self.status_var.set("Cancelling..."))
+            self.root.after(0, lambda: self.status_var.set("正在取消..."))
             logging.info("用户请求取消转换")
 
     def convert_files(self):
@@ -402,7 +402,7 @@ class MP4ToMP3Converter:
         for index, file in enumerate(self.files):
             # 检查是否取消
             if self.cancel_event.is_set():
-                self.root.after(0, lambda: self.status_var.set("Conversion cancelled"))
+                self.root.after(0, lambda: self.status_var.set("转换已取消"))
                 logging.info("转换已取消")
                 break
 
@@ -412,7 +412,7 @@ class MP4ToMP3Converter:
 
                 # 更新状态（线程安全）
                 self.root.after(0, lambda fn=file_name, i=index, t=total_files:
-                              self.status_var.set(f"Converting {fn} ({i + 1}/{t})"))
+                              self.status_var.set(f"正在转换 {fn} ({i + 1}/{t})"))
 
                 # 设置输出文件路径
                 output_file = os.path.join(
@@ -439,7 +439,7 @@ class MP4ToMP3Converter:
                 audio = video.audio
 
                 if audio is None:
-                    raise Exception("Video file has no audio track")
+                    raise Exception("视频文件没有音频轨道")
 
                 # 设置音频参数
                 audio.write_audiofile(
@@ -472,15 +472,15 @@ class MP4ToMP3Converter:
 
             except Exception as e:
                 failed += 1
-                error_msg = f"Error converting {file_name}: {str(e)}"
+                error_msg = f"转换 {file_name} 时出错: {str(e)}"
                 logging.error(error_msg)
                 self.root.after(0, lambda msg=error_msg:
-                              messagebox.showerror("Conversion Error", msg))
+                              messagebox.showerror("转换错误", msg))
 
         # 转换完成处理
         if not self.cancel_event.is_set():
             total_time = time.time() - total_start_time
-            status_msg = f"Completed: {successful} succeeded, {failed} failed in {timedelta(seconds=int(total_time))}"
+            status_msg = f"完成: {successful} 个成功, {failed} 个失败，耗时 {timedelta(seconds=int(total_time))}"
             self.root.after(0, lambda msg=status_msg: self.status_var.set(msg))
             self.root.after(0, lambda: self.progress_var.set(100))
 
@@ -491,9 +491,9 @@ class MP4ToMP3Converter:
                 pass
 
             # 显示完成消息
-            completion_msg = f"Conversion completed!\n\nSuccessful: {successful}\nFailed: {failed}\nTotal time: {timedelta(seconds=int(total_time))}"
+            completion_msg = f"转换完成！\n\n成功: {successful} 个\n失败: {failed} 个\n总耗时: {timedelta(seconds=int(total_time))}"
             self.root.after(0, lambda msg=completion_msg:
-                          messagebox.showinfo("Conversion Complete", msg))
+                          messagebox.showinfo("转换完成", msg))
 
             logging.info(f"转换完成: 成功 {successful}, 失败 {failed}")
 
@@ -505,7 +505,7 @@ class MP4ToMP3Converter:
     def on_closing(self):
         """窗口关闭事件处理"""
         if self.converting:
-            if messagebox.askokcancel("Quit", "Conversion in progress. Are you sure you want to quit?"):
+            if messagebox.askokcancel("退出", "转换正在进行中，确定要退出吗？"):
                 self.cancel_event.set()
                 logging.info("应用程序关闭")
                 self.root.destroy()
