@@ -5,13 +5,28 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
 
-# 收集 ttkbootstrap 的主题文件
-datas = collect_data_files('ttkbootstrap')
+# 收集数据文件和元数据
+datas = []
+datas += collect_data_files('ttkbootstrap')
+datas += collect_data_files('imageio', include_py_files=False)
+datas += collect_data_files('imageio_ffmpeg', include_py_files=False)
+
+# 收集包的元数据（重要！）
+try:
+    from PyInstaller.utils.hooks import copy_metadata
+    datas += copy_metadata('imageio')
+    datas += copy_metadata('imageio_ffmpeg')
+    datas += copy_metadata('moviepy')
+    datas += copy_metadata('ttkbootstrap')
+except:
+    pass
 
 # 收集所有隐藏导入
 hiddenimports = []
 hiddenimports += collect_submodules('moviepy')
 hiddenimports += collect_submodules('ttkbootstrap')
+hiddenimports += collect_submodules('imageio')
+hiddenimports += collect_submodules('imageio_ffmpeg')
 hiddenimports += ['PIL._tkinter_finder']
 
 a = Analysis(
