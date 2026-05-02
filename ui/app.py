@@ -45,7 +45,7 @@ class MP4ToMP3ConverterApp:
     ]
     BITRATE_VALUES = ["128k", "192k", "256k", "320k"]
 
-    def __init__(self, root: ttk.Window) -> None:
+    def __init__(self, root: tk.Tk) -> None:
         self.root = root
 
         # --- Core services ---
@@ -470,6 +470,7 @@ class MP4ToMP3ConverterApp:
                 tasks,
                 on_progress=self._on_convert_progress,
                 on_task_done=self._on_convert_task_done,
+                on_file_progress=self._on_file_progress,
             )
         finally:
             self.root.after(0, self._on_conversion_finished)
@@ -481,7 +482,9 @@ class MP4ToMP3ConverterApp:
                 f"⏳ 正在转换：{filename} ({done}/{total})"
             ),
         )
-        self.root.after(0, lambda: self._progress_var.set((done / total) * 100))
+
+    def _on_file_progress(self, pct: float) -> None:
+        self.root.after(0, lambda: self._progress_var.set(pct))
 
     def _on_convert_task_done(self, task: ConversionTask) -> None:
         if task.status == ConversionStatus.COMPLETED:

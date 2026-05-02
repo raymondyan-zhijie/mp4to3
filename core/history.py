@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import sqlite3
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -35,6 +36,7 @@ class HistoryStore:
     """
 
     def __init__(self, paths: AppPaths) -> None:
+        self._main_thread = threading.current_thread()
         self._conn = sqlite3.connect(
             str(paths.history_db),
             check_same_thread=False,
@@ -51,8 +53,17 @@ class HistoryStore:
         self._conn.execute(_SCHEMA)
         self._conn.commit()
 
+    def _assert_main_thread(self) -> None:
+        """Raise RuntimeError if called from a non-main thread."""
+        if threading.current_thread() is not self._main_thread:
+            raise RuntimeError(
+                "HistoryStore 方法必须从主线程调用。"
+                "请使用 root.after(0, lambda: store.add(record)) 从工作线程调度写入。"
+            )
+
     def add(self, record: HistoryRecord) -> int:
         """Insert a record. Returns the new row ID."""
+        self._assert_main_thread()
         cursor = self._conn.execute(
             """INSERT INTO history
                (timestamp, source_name, output_name, source_path,
@@ -74,6 +85,7 @@ class HistoryStore:
 
     def get_all(self, limit: int = 100, offset: int = 0) -> list[HistoryRecord]:
         """Return recent records, newest first."""
+        self._assert_main_thread()
         rows = self._conn.execute(
             "SELECT * FROM history ORDER BY id DESC LIMIT ? OFFSET ?",
             (limit, offset),
@@ -81,16 +93,19 @@ class HistoryStore:
         return [self._row_to_record(row) for row in rows]
 
     def count(self) -> int:
+        self._assert_main_thread()
         row = self._conn.execute("SELECT COUNT(*) as cnt FROM history").fetchone()
         return row["cnt"]
 
     def clear(self) -> None:
+        self._assert_main_thread()
         self._conn.execute("DELETE FROM history")
         self._conn.execute("VACUUM")
         self._conn.commit()
         logging.info("历史记录已清空")
 
     def close(self) -> None:
+        self._assert_main_thread()
         self._conn.close()
 
     def _migrate_from_json(self, json_path: Path) -> int:

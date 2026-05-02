@@ -5,22 +5,26 @@ Usage: python main.py
 """
 
 from __future__ import annotations
+import tkinter as tk
 import ttkbootstrap as ttk
 from ui.app import MP4ToMP3ConverterApp
 
 
 def main() -> None:
-    root = ttk.Window(
-        title="MP4 转 MP3 转换器",
-        themename="cosmo",
-        size=(1000, 750),
-    )
+    try:
+        import tkinterdnd2
+        root = tkinterdnd2.Tk()
+    except (ImportError, Exception):
+        root = tk.Tk()
 
-    style = ttk.Style()
+    style = ttk.Style("cosmo")
     style.configure(".", font=("微软雅黑", 12))
     style.configure("TButton", font=("微软雅黑", 14, "bold"))
     style.configure("TLabel", font=("微软雅黑", 12))
     style.configure("TLabelframe.Label", font=("微软雅黑", 16, "bold"))
+
+    root.title("MP4 转 MP3 转换器")
+    root.geometry("1000x750")
 
     app = MP4ToMP3ConverterApp(root)
     root.mainloop()

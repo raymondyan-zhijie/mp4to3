@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import subprocess
 import sys
 import time
@@ -52,7 +53,12 @@ def _get_ffprobe_path() -> Optional[Path]:
 
 
 class FFMpegConverter:
-    """Convert video files to MP3 by shelling out to bundled ffmpeg."""
+    """Convert video files to MP3 by shelling out to bundled ffmpeg.
+
+    Supports:
+    - ``-acodec copy`` fast path when source audio is already MP3
+    - Real-time progress via stderr ``time=`` parsing
+    """
 
     def __init__(self, ffmpeg_path: Optional[str] = None) -> None:
         self._ffmpeg_path: str = ffmpeg_path or get_ffmpeg_exe()
@@ -80,6 +86,7 @@ class FFMpegConverter:
         output: Path,
         bitrate: str = "192k",
         sample_rate: int = 44100,
+        on_progress: Optional[Callable[[float], None]] = None,
     ) -> None:
         """Convert one video file to MP3. Blocks until done or cancelled.
 
@@ -93,22 +100,34 @@ class FFMpegConverter:
         if source.stat().st_size == 0:
             raise ValueError(f"源文件大小为 0 字节: {source}")
 
-        if not self._source_has_audio(source):
+        # Probe source for audio codec and duration
+        audio_codec, total_duration = self._probe_source(source)
+
+        if not audio_codec and not self._source_has_audio(source):
             raise ValueError(f"视频文件没有音频轨道: {source.name}")
 
         output.parent.mkdir(parents=True, exist_ok=True)
+
+        use_copy = audio_codec and audio_codec.lower() == "mp3"
 
         cmd = [
             self._ffmpeg_path,
             "-y",
             "-i", str(source),
             "-vn",
-            "-c:a", "libmp3lame",
-            "-b:a", bitrate,
-            "-ar", str(sample_rate),
-            str(output),
         ]
+        if use_copy:
+            cmd.extend(["-acodec", "copy"])
+            logging.info(f"检测到 MP3 音频，使用无损复制: {source.name}")
+        else:
+            cmd.extend([
+                "-c:a", "libmp3lame",
+                "-b:a", bitrate,
+                "-ar", str(sample_rate),
+            ])
+        cmd.append(str(output))
 
+        stderr_lines: list[str] = []
         try:
             self._process = subprocess.Popen(
                 cmd,
@@ -118,8 +137,33 @@ class FFMpegConverter:
                 encoding="utf-8",
                 errors="replace",
             )
-            _, stderr = self._process.communicate()
-            returncode = self._process.returncode
+
+            last_pct = -1
+            for line in self._process.stderr:
+                stderr_lines.append(line)
+                if self._cancel:
+                    self._process.terminate()
+                    break
+                if on_progress and total_duration > 0:
+                    m = re.search(
+                        r"time=(\d+):(\d+):(\d+)\.(\d+)", line
+                    )
+                    if m:
+                        current = (
+                            int(m.group(1)) * 3600
+                            + int(m.group(2)) * 60
+                            + int(m.group(3))
+                            + int(m.group(4)) / 100.0
+                        )
+                        pct = min(int(current / total_duration * 100), 99)
+                        if pct > last_pct:
+                            last_pct = pct
+                            on_progress(pct)
+
+            if on_progress and not self._cancel:
+                on_progress(100)
+
+            returncode = self._process.wait()
         finally:
             self._process = None
 
@@ -127,7 +171,12 @@ class FFMpegConverter:
             return
 
         if returncode != 0:
-            error_tail = stderr.strip().split("\n")[-3:] if stderr else ["未知错误"]
+            stderr_str = "".join(stderr_lines)
+            error_tail = (
+                stderr_str.strip().split("\n")[-3:]
+                if stderr_str.strip()
+                else ["未知错误"]
+            )
             raise RuntimeError("\n".join(error_tail))
 
     def convert_batch(
@@ -135,8 +184,14 @@ class FFMpegConverter:
         tasks: list[ConversionTask],
         on_progress: Optional[Callable[[int, int, str], None]] = None,
         on_task_done: Optional[Callable[[ConversionTask], None]] = None,
+        on_file_progress: Optional[Callable[[float], None]] = None,
     ) -> list[ConversionTask]:
-        """Convert all tasks sequentially. Mutates task objects in-place."""
+        """Convert all tasks sequentially. Mutates task objects in-place.
+
+        *on_progress* receives ``(done, total, filename)`` for batch-level
+        status. *on_file_progress* receives ``(pct)`` (0–100) for per-file
+        progress, driven by ffmpeg ``time=`` stderr output.
+        """
         self.reset_cancel()
         total = len(tasks)
 
@@ -158,6 +213,7 @@ class FFMpegConverter:
                     task.output_path,
                     task.bitrate,
                     task.sample_rate,
+                    on_progress=on_file_progress,
                 )
                 if self._cancel:
                     task.status = ConversionStatus.CANCELLED
@@ -175,6 +231,52 @@ class FFMpegConverter:
                 on_task_done(task)
 
         return tasks
+
+    # ------------------------------------------------------------------
+    # Source probing
+    # ------------------------------------------------------------------
+
+    def _probe_source(self, source: Path) -> tuple[str, float]:
+        """Run ``ffmpeg -i`` to extract audio codec and duration.
+
+        Returns ``(codec_name, duration_seconds)``. Both are empty/zero
+        when detection fails.
+        """
+        cmd = [self._ffmpeg_path, "-i", str(source)]
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                encoding="utf-8",
+                errors="replace",
+            )
+            stderr = result.stderr
+            codec = self._parse_audio_codec(stderr)
+            duration = self._parse_duration(stderr)
+            return codec, duration
+        except Exception:
+            return "", 0.0
+
+    @staticmethod
+    def _parse_audio_codec(stderr: str) -> str:
+        """Extract audio codec name from ffmpeg stderr."""
+        m = re.search(r"Audio:\s*(\w+)", stderr)
+        return m.group(1) if m else ""
+
+    @staticmethod
+    def _parse_duration(stderr: str) -> float:
+        """Extract Duration from ffmpeg stderr, return seconds."""
+        m = re.search(r"Duration:\s*(\d+):(\d+):(\d+)\.(\d+)", stderr)
+        if m:
+            return (
+                int(m.group(1)) * 3600
+                + int(m.group(2)) * 60
+                + int(m.group(3))
+                + int(m.group(4)) / 100.0
+            )
+        return 0.0
 
     def _source_has_audio(self, source: Path) -> bool:
         """Check if the source file contains an audio stream via ffprobe.
