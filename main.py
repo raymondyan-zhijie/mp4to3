@@ -28,6 +28,9 @@ logging.basicConfig(
 class MP4ToMP3Converter:
     """MP4 到 MP3 转换器 - 老年人友好版"""
 
+    # 支持的视频文件扩展名
+    SUPPORTED_EXTENSIONS = {'.mp4', '.avi', '.mkv', '.mov', '.flv', '.wmv', '.m4v', '.webm', '.ts', '.mts'}
+
     def __init__(self, root):
         """初始化转换器应用"""
         self.root = root
@@ -501,12 +504,21 @@ class MP4ToMP3Converter:
             ]
         )
         if files:
-            # 避免重复添加
+            skipped = 0
             for file in files:
-                if file not in self.files:
-                    self.files.append(file)
+                if file in self.files:
+                    skipped += 1
+                    continue
+                ext = os.path.splitext(file)[1].lower()
+                if ext not in self.SUPPORTED_EXTENSIONS:
+                    logging.warning(f"不支持的文件格式，已跳过: {os.path.basename(file)}")
+                    skipped += 1
+                    continue
+                self.files.append(file)
             self.update_file_list()
-            logging.info(f"选择了 {len(files)} 个文件")
+            if skipped > 0:
+                messagebox.showwarning("提示", f"已跳过 {skipped} 个不支持或不重复的文件")
+            logging.info(f"选择了 {len(files)} 个文件，有效 {len(files) - skipped} 个")
 
     def clear_files(self):
         """清空文件选择"""
@@ -625,6 +637,15 @@ class MP4ToMP3Converter:
                 file_start_time = time.time()
                 file_name = os.path.basename(file)
 
+                # 检查源文件是否存在
+                if not os.path.exists(file):
+                    raise FileNotFoundError(f"源文件不存在: {file}")
+
+                # 检查文件大小（0 字节文件无效）
+                file_size = os.path.getsize(file)
+                if file_size == 0:
+                    raise ValueError(f"源文件大小为 0 字节: {file}")
+
                 # 更新状态（线程安全）
                 self.root.after(0, lambda fn=file_name, i=index, t=total_files:
                               self.status_var.set(f"⏳ 正在转换：{fn} ({i + 1}/{t})"))
@@ -649,23 +670,27 @@ class MP4ToMP3Converter:
                 logging.info(f"正在转换: {file_name}")
 
                 # 转换文件
-                video = VideoFileClip(file)
-                audio = video.audio
+                video = None
+                audio = None
+                try:
+                    video = VideoFileClip(file)
+                    audio = video.audio
 
-                if audio is None:
-                    raise Exception("视频文件没有音频轨道")
+                    if audio is None:
+                        raise RuntimeError("视频文件没有音频轨道")
 
-                # 设置音频参数
-                audio.write_audiofile(
-                    output_file,
-                    bitrate=bitrate,
-                    fps=44100,
-                    logger=None
-                )
-
-                # 关闭资源
-                audio.close()
-                video.close()
+                    # 设置音频参数
+                    audio.write_audiofile(
+                        output_file,
+                        bitrate=bitrate,
+                        fps=44100,
+                        logger=None
+                    )
+                finally:
+                    if audio is not None and hasattr(audio, 'close'):
+                        audio.close()
+                    if video is not None and hasattr(video, 'close'):
+                        video.close()
 
                 # 更新进度（线程安全）
                 progress = ((index + 1) / total_files) * 100
