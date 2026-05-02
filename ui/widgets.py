@@ -65,21 +65,26 @@ class DnDListbox(tk.Listbox):
     """A Listbox that accepts file drops via tkinterdnd2.
 
     Callback signature: on_files_dropped(file_paths: list[str]) -> None
+
+    If *dnd_adapter* is provided and available, DnD is registered through
+    the adapter. Otherwise the listbox degrades gracefully — it still works
+    for display and the user can add files via the button.
     """
 
     def __init__(
         self,
         parent: tk.Widget,
         on_files_dropped: Callable[[list[str]], None],
+        dnd_adapter: object | None = None,
         **kwargs,
     ) -> None:
         super().__init__(parent, **kwargs)
         self._on_files_dropped = on_files_dropped
-        self._register_dnd()
+        self._register_dnd(dnd_adapter)
 
-    def _register_dnd(self) -> None:
-        self.drop_target_register("*")
-        self.dnd_bind("<<Drop>>", self._on_drop)
+    def _register_dnd(self, adapter: object | None) -> None:
+        if adapter is not None and getattr(adapter, "available", False):
+            adapter.register_drop_target(self, self._on_drop)
 
     def _on_drop(self, event: tk.Event) -> None:
         if not event.data:

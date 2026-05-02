@@ -25,6 +25,7 @@ from core.models import (
 from core.config import ConfigManager
 from core.history import HistoryStore
 from core.engine import FFMpegConverter, SUPPORTED_EXTENSIONS, resolve_output_path
+from ui.dnd_adapter import DnDAdapter
 from ui.widgets import ScrollableFrame, DnDListbox
 
 try:
@@ -66,8 +67,11 @@ class MP4ToMP3ConverterApp:
         self.root.minsize(800, 600)
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
 
+        # --- Drag-and-drop adapter ---
+        self._dnd = DnDAdapter(self.root)
+
         # --- Build UI ---
-        self._setup_drag_drop()       # must be before _create_widgets: DnDListbox needs tkdnd
+        self._setup_drag_drop()
         self._create_widgets()
         self._apply_config_to_ui()
 
@@ -94,11 +98,7 @@ class MP4ToMP3ConverterApp:
         self._output_path_var.set(self._config.output_dir)
 
     def _setup_drag_drop(self) -> None:
-        import tkinterdnd2
-
-        tkinterdnd2.TkinterDnD._require(self.root)
-        self.root.drop_target_register("*")
-        self.root.dnd_bind("<<Drop>>", self._on_root_drop)
+        self._dnd.register_drop_target(self.root, self._on_root_drop)
 
     def _on_root_drop(self, event: tk.Event) -> None:
         if not event.data:
@@ -193,6 +193,7 @@ class MP4ToMP3ConverterApp:
         self._file_listbox = DnDListbox(
             list_container,
             on_files_dropped=self._handle_dropped_files,
+            dnd_adapter=self._dnd,
             font=("微软雅黑", 14),
             yscrollcommand=list_scrollbar.set,
             height=6,

@@ -24,7 +24,7 @@ hiddenimports = []
 hiddenimports += collect_submodules('ttkbootstrap')
 hiddenimports += collect_submodules('imageio_ffmpeg')
 hiddenimports += collect_submodules('tkinterdnd2')
-hiddenimports += ['tomli_w', 'platformdirs']
+hiddenimports += ['tomli_w', 'platformdirs', 'tkinterdnd2.TkinterDnD']
 
 a = Analysis(
     ['main.py'],

@@ -27,7 +27,12 @@ CREATE TABLE IF NOT EXISTS history (
 
 
 class HistoryStore:
-    """SQLite-backed conversion history with WAL mode and JSON migration."""
+    """SQLite-backed conversion history with WAL mode and JSON migration.
+
+    Thread Safety: All methods MUST be called from the main (UI) thread.
+    To schedule writes from a worker thread, use
+    ``root.after(0, lambda: store.add(record))``.
+    """
 
     def __init__(self, paths: AppPaths) -> None:
         self._conn = sqlite3.connect(

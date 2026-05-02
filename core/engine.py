@@ -34,11 +34,21 @@ def resolve_output_path(output_dir: Path, source_name: str) -> Path:
     return candidate
 
 
-def _get_ffprobe_path() -> Path:
-    """Resolve ffprobe next to the bundled ffmpeg binary."""
+def _get_ffprobe_path() -> Optional[Path]:
+    """Resolve ffprobe next to the bundled ffmpeg binary.
+
+    Returns ``None`` when ffprobe is not available (``imageio-ffmpeg``
+    bundles only ffmpeg, not ffprobe).
+    """
     ffmpeg = Path(get_ffmpeg_exe())
     suffix = ".exe" if sys.platform == "win32" else ""
-    return ffmpeg.with_name(f"ffprobe{suffix}")
+    ffprobe = ffmpeg.with_name(f"ffprobe{suffix}")
+    if not ffprobe.exists():
+        logging.info(
+            "ffprobe 不可用 (imageio-ffmpeg 仅包含 ffmpeg)，将跳过音频轨道检测"
+        )
+        return None
+    return ffprobe
 
 
 class FFMpegConverter:
@@ -167,11 +177,17 @@ class FFMpegConverter:
         return tasks
 
     def _source_has_audio(self, source: Path) -> bool:
-        """Check if the source file contains an audio stream via ffprobe."""
-        ffprobe = str(_get_ffprobe_path())
+        """Check if the source file contains an audio stream via ffprobe.
+
+        When ffprobe is unavailable, conservatively assumes audio is present
+        so conversion proceeds (ffmpeg will report the actual error).
+        """
+        ffprobe_path = _get_ffprobe_path()
+        if ffprobe_path is None:
+            return True
         try:
             result = subprocess.run(
-                [ffprobe, "-v", "error", "-show_entries",
+                [str(ffprobe_path), "-v", "error", "-show_entries",
                  "stream=codec_type", "-of", "csv=p=0", str(source)],
                 capture_output=True, text=True, timeout=30,
                 encoding="utf-8", errors="replace",
