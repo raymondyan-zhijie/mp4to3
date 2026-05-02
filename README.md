@@ -18,16 +18,17 @@
 
 ### 🎵 强大功能
 - 🎬 **批量转换** - 同时选择和转换多个视频文件
+- 🖱️ **拖放支持** - 从文件管理器直接拖入视频文件，对老年用户极友好
 - 🎵 **高质量音频** - 支持多种比特率（128k - 320k），默认推荐192k
 - 📁 **灵活输出** - 自定义输出目录，默认保存至用户音乐文件夹
 - 📊 **实时进度** - 实时显示转换进度和状态
-- 📝 **历史记录** - 自动记录所有转换历史，支持查看和清空
+- 📝 **历史记录** - SQLite 存储所有转换历史，支持查询和清空
 - 🎯 **多格式支持** - 支持 MP4、AVI、MKV、MOV、FLV、WMV、WebM、TS/MTS
 - ⏸️ **取消功能** - 可随时中止正在进行的转换任务
 - 🔔 **完成提示** - 转换完成后自动声音提醒
 - 📋 **详细日志** - 记录所有操作和错误信息，便于问题排查
-- 💾 **配置保存** - 自动保存用户偏好设置（音质、输出目录）
-- 🛡️ **安全防护** - 文件存在性检查、格式验证、资源泄漏保护
+- 💾 **配置保存** - TOML 格式自动保存用户偏好设置（音质、输出目录）
+- 🛡️ **安全防护** - 文件存在性检查、格式验证、ffmpeg 进程管理
 
 ## 💻 系统要求
 
@@ -51,7 +52,7 @@ git clone https://github.com/raymondyan-zhijie/mp4to3.git
 cd mp4to3
 
 # 2. 安装运行时依赖
-pip install moviepy>=1.0.3 ttkbootstrap>=1.10.0
+pip install imageio-ffmpeg ttkbootstrap tkinterdnd2 platformdirs tomli-w
 
 # 3. 运行程序
 python main.py
@@ -135,7 +136,15 @@ pyinstaller build.spec
 
 ```
 mp4to3/
-├── main.py                     # 主程序文件
+├── main.py                     # 入口文件（~30 行）
+├── core/                       # 核心业务逻辑层（零 UI 依赖）
+│   ├── models.py               # 数据类定义（ConversionConfig, ConversionTask 等）
+│   ├── config.py               # TOML 配置管理（自动从 JSON 迁移）
+│   ├── history.py              # SQLite 历史存储（自动从 JSON 迁移）
+│   └── engine.py               # FFmpeg 子进程转换器（替代 moviepy）
+├── ui/                         # 界面层
+│   ├── widgets.py              # 可复用组件（ScrollableFrame, DnDListbox）
+│   └── app.py                  # 主应用窗口（纯 UI，委托核心层）
 ├── requirements.txt            # Python 依赖列表（含运行时和打包依赖）
 ├── build.spec                  # PyInstaller 打包配置
 ├── build.bat                   # 一键构建脚本
@@ -188,6 +197,14 @@ mp4to3/
 
 ## 📝 更新日志
 
+### v3.0.0 (架构重构)
+- 🏗️ **分层架构** - 核心层与 UI 完全解耦，`core/` 零 UI 依赖
+- 🔧 **FFmpeg 替代 moviepy** - 直接调用内置 ffmpeg，减少依赖体积
+- 🖱️ **拖放支持** - 从文件管理器直接拖入视频文件
+- 💾 **TOML 配置** - 类型安全 dataclass + TOML，自动从 JSON 迁移
+- 🗄️ **SQLite 历史** - 标准库内置，自动从 JSON 迁移
+- 🌍 **跨平台路径** - platformdirs 替代硬编码 %APPDATA%
+
 ### v2.0.1
 - 🛡️ 添加文件存在性检查，防止源文件被删除后崩溃
 - 🛡️ 添加 try-finally 资源保护，确保异常时正确释放音视频资源
@@ -232,17 +249,27 @@ mp4to3/
 
 ## 👨‍💻 技术栈
 
-- **Python 3.7+** - 核心语言
-- **MoviePy** - 视频音频处理引擎
+- **Python 3.11+** - 核心语言
+- **FFmpeg** (via imageio-ffmpeg) - 视频音频处理引擎（替代 moviepy）
 - **ttkbootstrap** - 现代化 UI 主题框架
 - **Tkinter** - Python 标准 GUI 库
+- **tkinterdnd2** - 拖放文件支持
+- **SQLite** - 标准库历史记录存储
+- **TOML** - 配置文件格式（tomllib + tomli-w）
+- **platformdirs** - 跨平台数据目录
 - **PyInstaller** - 可执行文件打包工具
+
+### 架构特色
+- **分层解耦**：`core/` 层零 UI 依赖，未来添加 CLI 或 Web 界面只需替换 `ui/` 层
+- **FFmpeg 直调**：通过 `subprocess` 直接调用内置 ffmpeg，消除 moviepy 依赖
+- **类型安全配置**：dataclass + TOML，IDE 自动补全
 
 ## 🙏 鸣谢
 
-- [MoviePy](https://zulko.github.io/moviepy/) - 强大的视频处理库
+- [FFmpeg](https://ffmpeg.org/) - 业界标准的音视频处理工具
+- [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg) - 内置 ffmpeg 二进制分发
 - [ttkbootstrap](https://ttkbootstrap.readthedocs.io/) - 现代化的 Tkinter 主题
-- [Tkinter](https://docs.python.org/3/library/tkinter.html) - Python 标准 GUI 库
+- [tkinterdnd2](https://github.com/Eliav2/tkinterdnd2) - Tkinter 拖放支持
 
 ## 📄 许可证
 

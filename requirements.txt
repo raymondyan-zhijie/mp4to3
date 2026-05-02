@@ -1,6 +1,9 @@
 # ==================== 运行时依赖 ====================
-moviepy>=1.0.3               # 视频/音频处理核心库
-ttkbootstrap>=1.10.0         # 现代化 tkinter UI 主题
+imageio-ffmpeg>=0.4.9          # 内置 ffmpeg 二进制（无需系统安装 ffmpeg）
+ttkbootstrap>=1.10.0           # 现代化 tkinter UI 主题
+tomli-w>=1.0.0                 # TOML 写入（tomllib 读取内置在 Python 3.11+）
+tkinterdnd2>=0.3.0             # 拖放文件支持
+platformdirs>=4.0.0            # 跨平台目录路径
 
 # ==================== 打包依赖 ====================
-pyinstaller>=5.0.0           # 可执行文件打包工具
+pyinstaller>=5.0.0             # 可执行文件打包工具
