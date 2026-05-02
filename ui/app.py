@@ -67,9 +67,9 @@ class MP4ToMP3ConverterApp:
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
 
         # --- Build UI ---
+        self._setup_drag_drop()       # must be before _create_widgets: DnDListbox needs tkdnd
         self._create_widgets()
         self._apply_config_to_ui()
-        self._setup_drag_drop()
 
         logging.info("应用程序启动")
 
