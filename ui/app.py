@@ -97,7 +97,6 @@ class MP4ToMP3ConverterApp:
         import tkinterdnd2
 
         tkinterdnd2.TkinterDnD._require(self.root)
-        tkinterdnd2.TkinterDnD.DnDWrapper.__init__(self.root)
         self.root.drop_target_register("*")
         self.root.dnd_bind("<<Drop>>", self._on_root_drop)
 

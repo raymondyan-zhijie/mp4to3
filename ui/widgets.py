@@ -78,9 +78,6 @@ class DnDListbox(tk.Listbox):
         self._register_dnd()
 
     def _register_dnd(self) -> None:
-        import tkinterdnd2
-
-        tkinterdnd2.TkinterDnD.DnDWrapper.__init__(self)
         self.drop_target_register("*")
         self.dnd_bind("<<Drop>>", self._on_drop)
 
