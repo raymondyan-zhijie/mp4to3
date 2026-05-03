@@ -5,9 +5,15 @@ Usage: python main.py
 """
 
 from __future__ import annotations
+import sys
 import tkinter as tk
 import ttkbootstrap as ttk
 from ui.app import MP4ToMP3ConverterApp
+
+FONT_FAMILY = {
+    "win32": "微软雅黑",
+    "darwin": "PingFang SC",
+}.get(sys.platform, "TkDefaultFont")
 
 
 def main() -> None:
@@ -18,10 +24,10 @@ def main() -> None:
         root = tk.Tk()
 
     style = ttk.Style("cosmo")
-    style.configure(".", font=("微软雅黑", 12))
-    style.configure("TButton", font=("微软雅黑", 14, "bold"))
-    style.configure("TLabel", font=("微软雅黑", 12))
-    style.configure("TLabelframe.Label", font=("微软雅黑", 16, "bold"))
+    style.configure(".", font=(FONT_FAMILY, 12))
+    style.configure("TButton", font=(FONT_FAMILY, 14, "bold"))
+    style.configure("TLabel", font=(FONT_FAMILY, 12))
+    style.configure("TLabelframe.Label", font=(FONT_FAMILY, 16, "bold"))
 
     root.title("MP4 转 MP3 转换器")
     root.geometry("1000x750")

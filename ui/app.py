@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 import threading
 import time
 from datetime import datetime, timedelta
@@ -32,6 +33,11 @@ try:
     import winsound  # type: ignore
 except ImportError:
     winsound = None
+
+FONT_FAMILY = {
+    "win32": "微软雅黑",
+    "darwin": "PingFang SC",
+}.get(sys.platform, "TkDefaultFont")
 
 
 class MP4ToMP3ConverterApp:
@@ -133,14 +139,14 @@ class MP4ToMP3ConverterApp:
         ttk.Label(
             title_frame,
             text="🎵 视频转音频工具",
-            font=("微软雅黑", 24, "bold"),
+            font=(FONT_FAMILY, 24, "bold"),
             bootstyle="inverse-primary",
         ).pack()
 
         ttk.Label(
             title_frame,
             text="简单三步：选择视频 → 点击转换 → 完成",
-            font=("微软雅黑", 13),
+            font=(FONT_FAMILY, 13),
             bootstyle="secondary",
         ).pack(pady=(3, 0))
 
@@ -180,7 +186,7 @@ class MP4ToMP3ConverterApp:
         ttk.Label(
             btn_container,
             textvariable=self._file_count_var,
-            font=("微软雅黑", 16, "bold"),
+            font=(FONT_FAMILY, 16, "bold"),
             bootstyle="info",
         ).pack(side=LEFT, padx=(20, 0))
 
@@ -194,7 +200,7 @@ class MP4ToMP3ConverterApp:
             list_container,
             on_files_dropped=self._handle_dropped_files,
             dnd_adapter=self._dnd,
-            font=("微软雅黑", 14),
+            font=(FONT_FAMILY, 14),
             yscrollcommand=list_scrollbar.set,
             height=6,
             selectmode=tk.SINGLE,
@@ -220,7 +226,7 @@ class MP4ToMP3ConverterApp:
         ttk.Label(
             quality_container,
             text="音质选择：",
-            font=("微软雅黑", 16, "bold"),
+            font=(FONT_FAMILY, 16, "bold"),
         ).pack(side=LEFT, padx=(0, 10))
 
         self._bitrate_var = tk.StringVar(value=self.BITRATES[1])
@@ -229,7 +235,7 @@ class MP4ToMP3ConverterApp:
             textvariable=self._bitrate_var,
             values=self.BITRATES,
             state="readonly",
-            font=("微软雅黑", 14),
+            font=(FONT_FAMILY, 14),
             width=25,
         )
         combo.pack(side=LEFT)
@@ -241,7 +247,7 @@ class MP4ToMP3ConverterApp:
         ttk.Label(
             output_container,
             text="保存位置：",
-            font=("微软雅黑", 16, "bold"),
+            font=(FONT_FAMILY, 16, "bold"),
         ).pack(side=LEFT, padx=(0, 10))
 
         self._output_path_var = tk.StringVar()
@@ -249,7 +255,7 @@ class MP4ToMP3ConverterApp:
             output_container,
             textvariable=self._output_path_var,
             state="readonly",
-            font=("微软雅黑", 12),
+            font=(FONT_FAMILY, 12),
             width=35,
         ).pack(side=LEFT, padx=(0, 10))
 
@@ -286,7 +292,7 @@ class MP4ToMP3ConverterApp:
         ttk.Label(
             step3,
             textvariable=self._status_var,
-            font=("微软雅黑", 14),
+            font=(FONT_FAMILY, 14),
             bootstyle="secondary",
             anchor=CENTER,
         ).pack(fill=X, pady=(0, 15))
@@ -502,14 +508,6 @@ class MP4ToMP3ConverterApp:
             logging.info(
                 f"转换成功: {task.source_path.name} -> {task.output_path.name}"
             )
-        elif task.status == ConversionStatus.FAILED:
-            self.root.after(
-                0,
-                lambda t=task: messagebox.showerror(
-                    "转换错误",
-                    f"转换 {t.source_path.name} 时出错:\n\n{t.error_message}",
-                ),
-            )
 
     # ------------------------------------------------------------------
     # Conversion finished (UI thread)
@@ -546,6 +544,17 @@ class MP4ToMP3ConverterApp:
             )
             self._progress_var.set(100)
 
+            if failed > 0:
+                error_msg = "\n".join(
+                    f"  {t.source_path.name}: {t.error_message}"
+                    for t in self._last_tasks
+                    if t.status == ConversionStatus.FAILED
+                )
+                messagebox.showerror(
+                    "转换错误",
+                    f"以下文件转换失败：\n\n{error_msg}",
+                )
+
             if winsound:
                 try:
                     winsound.PlaySound("SystemAsterisk", winsound.SND_ALIAS)
@@ -580,7 +589,7 @@ class MP4ToMP3ConverterApp:
         ttk.Label(
             container,
             text="📋 转换历史记录",
-            font=("微软雅黑", 20, "bold"),
+            font=(FONT_FAMILY, 20, "bold"),
             bootstyle="primary",
         ).pack(pady=(0, 20))
 
@@ -606,7 +615,7 @@ class MP4ToMP3ConverterApp:
 
             text_widget = tk.Text(
                 text_frame,
-                font=("微软雅黑", 12),
+                font=(FONT_FAMILY, 12),
                 yscrollcommand=sb.set,
                 wrap=tk.WORD,
                 relief=tk.FLAT,
@@ -624,14 +633,14 @@ class MP4ToMP3ConverterApp:
                 text_widget.insert(tk.END, "\n" + "-" * 80 + "\n\n")
 
             text_widget.tag_config(
-                "title", font=("微软雅黑", 13, "bold"), foreground="#0d6efd"
+                "title", font=(FONT_FAMILY, 13, "bold"), foreground="#0d6efd"
             )
             text_widget.config(state=tk.DISABLED)
         else:
             ttk.Label(
                 container,
                 text="暂无转换记录",
-                font=("微软雅黑", 16),
+                font=(FONT_FAMILY, 16),
                 bootstyle="secondary",
             ).pack(expand=YES)
 
